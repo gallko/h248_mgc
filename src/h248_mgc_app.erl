@@ -29,10 +29,20 @@ stop(_State) ->
 %%====================================================================
 start() ->
     load_configure(),
+    megaco:start(),
     application:start(h248_mgc).
 
 load_configure() ->
-    megaco:start(),
-    Res = file:get_cwd(),
-    Res1 = file:consult("../priv/mgc.config"),
-    false.
+    case file:consult("../priv/mgc.configs") of
+        {ok, Settings} ->
+            Result = [parser_setting(Set) || Set <- Settings],
+%%            {ok, Open} = file:open("copy.txt", write),
+            _Result = file:write_file("copy.txt", io_lib:fwrite("~p.\n",[Settings])),
+%%            file:close(Open),
+            true;
+        _ ->
+            false
+    end.
+
+parser_setting(Setting) ->
+    true.
