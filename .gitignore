@@ -15,3 +15,5 @@ logs
 _build
 .idea
 rebar3.crashdump
+h248_mgc.iml
+rebar.lock

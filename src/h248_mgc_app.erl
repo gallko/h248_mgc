@@ -7,6 +7,9 @@
 
 -behaviour(application).
 
+%% Public
+-export([start/0]).
+
 %% Application callbacks
 -export([start/2, stop/1]).
 
@@ -22,5 +25,14 @@ stop(_State) ->
     ok.
 
 %%====================================================================
-%% Internal functions
+%% Public functions
 %%====================================================================
+start() ->
+    load_configure(),
+    application:start(h248_mgc).
+
+load_configure() ->
+    megaco:start(),
+    Res = file:get_cwd(),
+    Res1 = file:consult("../priv/mgc.config"),
+    false.
