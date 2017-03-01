@@ -35,7 +35,7 @@ start() ->
 load_configure() ->
     case file:consult("../priv/mgc.configs") of
         {ok, Settings} ->
-            Result = [parser_setting(Set) || Set <- Settings],
+            _Result = [parser_setting(Set) || Set <- Settings],
 %%            {ok, Open} = file:open("copy.txt", write),
             _Result = file:write_file("copy.txt", io_lib:fwrite("~p.\n",[Settings])),
 %%            file:close(Open),
@@ -44,5 +44,5 @@ load_configure() ->
             false
     end.
 
-parser_setting(Setting) ->
+parser_setting(_Setting) ->
     true.

@@ -28,7 +28,14 @@ start_link() ->
 
 %% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
 init([]) ->
-    {ok, { {one_for_all, 0, 1}, []} }.
+    Load_MGC = #{id => load_mgc,
+        start => {load_mgc, start_link, []},
+        restart => permanent,
+        shutdown => 2000,
+        type => worker,
+        modules => [load_mgc]
+    },
+    {ok, { {one_for_all, 0, 1}, [Load_MGC]} }.
 
 %%====================================================================
 %% Internal functions
