@@ -18,31 +18,40 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-    h248_mgc_sup:start_link().
+    log:log(notify, "start application [~p]~n", [?MODULE]),
+    megaco:start(),
+    megaco:enable_trace(min, io),
+    Return = h248_mgc_sup:start_link(),
+
+    timer:sleep(timer:seconds(1)),
+    start_defualt_for_debug(),
+
+    Return.
 
 %%--------------------------------------------------------------------
 stop(_State) ->
+    log:log(notify, "stop application [~p]~n", [?MODULE]),
     ok.
 
 %%====================================================================
 %% Public functions
 %%====================================================================
 start() ->
-    load_configure(),
-    megaco:start(),
-    application:start(h248_mgc).
+    application:start(h248_mgc),
+    loop().
 
-load_configure() ->
-    case file:consult("../priv/mgc.configs") of
-        {ok, Settings} ->
-            _Result = [parser_setting(Set) || Set <- Settings],
-%%            {ok, Open} = file:open("copy.txt", write),
-            _Result = file:write_file("copy.txt", io_lib:fwrite("~p.\n",[Settings])),
-%%            file:close(Open),
-            true;
-        _ ->
-            false
-    end.
 
-parser_setting(_Setting) ->
-    true.
+%%====================================================================
+%% Debug functions
+%%====================================================================
+
+start_defualt_for_debug() ->
+    Mid_MGC = load_mgc:add_user("192.168.0.81", 2944, callback, []),
+    load_mgc:add_transport(Mid_MGC, megaco_pretty_text_encoder, megaco_udp).
+
+loop() ->
+    receive
+        _Msg ->
+            []
+    end,
+    loop().

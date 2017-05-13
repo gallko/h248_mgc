@@ -1,0 +1,13 @@
+{
+    mgc,
+    [
+        [ {iface, "eth1"}, {send_mod, "udp"}, {port, 2944}, {encoding_mod, "pretty"} ],
+        [ {iface, "eth1"}, {send_mod, "tcp"}, {port, 2944}, {encoding_mod, "pretty"} ],
+        [ {iface, "eth1"}, {send_mod, "udp"}, {port, 2945}, {encoding_mod, "binary"} ],
+        [ {iface, "eth1"}, {send_mod, "tcp"}, {port, 2945}, {encoding_mod, "binary"} ]
+    ]
+}.
+
+{
+    loger, [{level, "all"}, {file, "sessionAll.log"}]
+}.

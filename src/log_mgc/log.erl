@@ -10,22 +10,35 @@
 -author("rus").
 
 %% API
--export([log/1, log/2, inline_trace/1]).
+-export([log/2, log/3, inline_trace/1]).
 
 %%----------------------------------------------------------------------
 %% DEBUGGING
 %%----------------------------------------------------------------------
 
-log(F) ->
-    log(F, []).
+log(warning, F) ->
+    io:format("MGC[warning]: " ++ F);
 
-log(F,A) ->
-    d(get(debug),F,A).
+log(notify, F) ->
+    io:format("MGC[notify]: " ++ F);
 
-d(true,F,A) ->
-    io:format("MGC: " ++ F ++ "~n", A);
-d(_, _F, _A) ->
-    ok.
+log(error, F) ->
+    io:format("MGC[error]: " ++ F);
+
+log(debug, F) ->
+    io:format("MGC[debug]: " ++ F).
+
+log(warning, F, A) ->
+    io:format("MGC[warning]: " ++ F, A);
+
+log(notify, F, A) ->
+    io:format("MGC[notify]: " ++ F, A);
+
+log(error, F, A) ->
+    io:format("MGC[error]: " ++ F, A);
+
+log(debug, F, A) ->
+    io:format("MGC[debug]: " ++ F, A).
 
 %% -----------------------------------------------------------------------
 
