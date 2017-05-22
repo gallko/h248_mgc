@@ -46,8 +46,9 @@ start() ->
 %%====================================================================
 
 start_defualt_for_debug() ->
-    Mid_MGC = load_mgc:add_user("192.168.0.81", 2944, callback, []),
-    load_mgc:add_transport(Mid_MGC, megaco_pretty_text_encoder, megaco_udp).
+    Mid_MGC = load_mgc:add_user("192.168.1.103", 2944, callback, []),
+    load_mgc:add_transport(Mid_MGC, megaco_pretty_text_encoder, megaco_udp),
+    mgw_sup:add_mgw(Mid_MGC, "192.168.1.108").
 
 loop() ->
     receive

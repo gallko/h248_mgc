@@ -15,7 +15,8 @@
 -include_lib("megaco/include/megaco_message_v1.hrl").
 
 %% API
--export([start_link/0]).
+-export([%start_link/0,
+    start_link/1]).
 
 %% gen_fsm callbacks
 -export([init/1,
@@ -46,6 +47,8 @@
 -spec(start_link() -> {ok, pid()} | ignore | {error, Reason :: term()}).
 start_link() ->
     gen_fsm:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(Mid) ->
+    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [Mid], []).
 
 %%%===================================================================
 %%% gen_fsm callbacks
@@ -64,26 +67,8 @@ start_link() ->
     {ok, StateName :: atom(), StateData :: #state{}} |
     {ok, StateName :: atom(), StateData :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore).
-init([Mid | _]) when is_record(Mid, 'IP4Address') ->
-    {ok, offline, #state{mid = Mid}};
-init([Ip | _]) when is_list(Ip) ->
-    Mid = case size(Ip) of
-              4 ->
-                  #'IP4Address'{address = Ip, portNumber = ?megaco_ip_port_text};
-              _N ->
-                  case inet:parse_address(Ip) of
-                      {ok, A} ->
-                          #'IP4Address'{address = tuple_to_list(A), portNumber = ?megaco_ip_port_text};
-                      {error, einval} ->
-                          error
-                  end
-          end,
-    case Mid of
-        error ->
-            {ok, stop, {"Ip not correct."}};
-        _M ->
-            {ok, offline, #state{mid = Mid}}
-    end.
+init(Mid) ->
+    {ok, offline, #state{mid = Mid}}.
 
 %%--------------------------------------------------------------------
 %% @private

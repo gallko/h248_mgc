@@ -74,16 +74,32 @@ init([]) ->
 %%%===================================================================
 
 add_mgw(Mid_User, Ip) ->
-    add_mgw(Ip, ?megaco_ip_port_text).
+    add_mgw(Mid_User, Ip, ?megaco_ip_port_text).
 add_mgw(Mid_User, Ip, Port) ->
-    MGW = list_to_atom(Ip ++ ":" ++ integer_to_list(Port)),
-    log:log(notify, "Add MGW: ~p~n", [MGW]),
-    Mgw = #{id => MGW,
-        start => {mgw_gen_fsm, start_link, [Ip, Port]},
+    Addr = case inet:parse_address(Ip) of
+               {ok, A} ->
+                   tuple_to_list(A);
+               {error, einval} ->
+                   log:log(warning, "ip not correct, set mid user 127.0.0.1~n"),
+                   [127, 0, 0, 1]
+           end,
+    MidMGW = {ip4Address, #'IP4Address'{address = Addr, portNumber = Port}},
+    MgwName = list_to_atom(Ip ++ ":" ++ integer_to_list(Port)),
+    Mgw = #{id => MgwName,
+        start => {mgw_gen_fsm, start_link, [MidMGW]},
         restart => transient, % рестартовать, если он завершился аварийно
         shutdown => 2000,
         type => worker,
         modules => [mgw_gen_fsm]
     },
     Res = supervisor:start_child(?SERVER, Mgw),
-    log:log(debug, "Start mgw_gen_fsm with parametrs ~p~n ......~p", [Mgw, Res]).
+    case Res of
+        {ok, _} ->
+            base_mgw:add(MgwName, MidMGW, Mid_User, 72),
+            log:log(notify, "Add MGW [~p]....ok", [MgwName]),
+            ok;
+        {error, _} ->
+            log:log(notify, "error.~n"),
+            error
+    end.
+

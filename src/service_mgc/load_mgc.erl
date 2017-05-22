@@ -196,7 +196,7 @@ add_transport({ip4Address, Mid}, Encoding, Protocol) when
     log:log(debug, "RecHandle: ~p~n", [NewHandle]),
     start_transport(Mid#'IP4Address'.portNumber, NewHandle);
 
-add_transport( Mid, Encoding, Protocol) ->
+add_transport(Mid, Encoding, Protocol) ->
     [].
 
 

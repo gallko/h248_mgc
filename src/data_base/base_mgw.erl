@@ -14,7 +14,7 @@
 
 %% API
 -export([init/0, destroy/0,
-    add/3, add/4, delete/1,
+    add/4, delete/1,
     get_all/1, get_rec/2]).
 
 %% debug func
@@ -23,7 +23,7 @@
 %% private record, work only this module!!!
 %% name -> "example"
 %% mid  -> {ip4Address,{'IP4Address',[192,168,0,81],2944}}
--record(mgc_base, {name, mid_self, mid_mgc,count_port}).
+-record(mgc_base, {name, mid_self, mid_mgc, count_port}).
 -define(TABLE, base_mgc).
 
 -spec(init() ->
@@ -51,35 +51,16 @@ destroy() ->
 %% Name and Ip is string, Port is integer.
 %% Name not check for correct
 %% example -> add("example", "192.168.0.81")
--spec(add(Name :: string(), Ip :: string(), CountPort :: integer()) ->
-    ok | {error, Description :: atom()}).
-add(Name, Ip, CountPort) ->
-    add(Name, Ip, ?megaco_ip_port_text, CountPort).
-
--spec(add(Name :: string(), Ip :: string(), Port :: integer(), CountPort :: integer()) ->
-    ok | {error, name_is_busy} | {error, table_not_create} | {error, incorrect} | {error, ip_incorrect}).
-add(Name, Ip, Port, CountPort) when
-    is_list(Name) and is_list(Ip) and is_integer(Port) and is_integer(CountPort) ->
-    case inet:parse_address(Ip) of
-        {ok, A} ->
-            MidSelf = {ip4Address, #'IP4Address'{address = tuple_to_list(A), portNumber = Port}},
-            NewRecord = #mgc_base{name = Name, mid_self = MidSelf, count_port = CountPort},
-            case table_check() of
-                true ->
-                    case ets:insert_new(?TABLE, NewRecord) of
-                        true ->
-                            ok;
-                        false ->
-                            {error, name_is_busy}
-                    end;
-                false ->
-                    {error, table_not_create}
-            end;
-        {error, einval} ->
-            {error, ip_incorrect}
-    end;
-add(_Name, _Ip, _Port, _CountPort) ->
-    {error, incorrect}.
+%%-spec(add(Name :: tuple(), Ip :: atom(), CountPort :: integer()) ->
+%%    ok | {error, Description :: atom()}).
+add(Name, MidMGW, MidMGC, CountPort) ->
+    NewRecord = #mgc_base{mid_self = MidMGW, mid_mgc = MidMGC, name = Name, count_port = CountPort},
+    case ets:insert_new(?TABLE, NewRecord) of
+        true ->
+            ok;
+        false ->
+            {error, name_is_busy}
+    end.
 
 %% Remove record in table
 %% Name is string.
