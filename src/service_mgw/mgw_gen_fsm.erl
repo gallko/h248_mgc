@@ -15,7 +15,7 @@
 -include_lib("megaco/include/megaco_message_v1.hrl").
 
 %% API
--export([%start_link/0,
+-export([start_link/0,
     start_link/1]).
 
 %% gen_fsm callbacks
@@ -46,9 +46,12 @@
 %%--------------------------------------------------------------------
 -spec(start_link() -> {ok, pid()} | ignore | {error, Reason :: term()}).
 start_link() ->
-    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [], []).
+%%    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [], []).
+    gen_fsm:start_link(?MODULE, [], []).
 start_link(Mid) ->
-    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [Mid], []).
+%%    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [Mid], []).
+    gen_fsm:start_link(?MODULE, [Mid], []).
+
 
 %%%===================================================================
 %%% gen_fsm callbacks
@@ -68,6 +71,7 @@ start_link(Mid) ->
     {ok, StateName :: atom(), StateData :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore).
 init(Mid) ->
+    log:log(notify, "Start Mgw thread, mid ~p~n", [Mid]),
     {ok, offline, #state{mid = Mid}}.
 
 %%--------------------------------------------------------------------
@@ -186,7 +190,8 @@ handle_info(_Info, StateName, State) ->
 %%--------------------------------------------------------------------
 -spec(terminate(Reason :: normal | shutdown | {shutdown, term()}
 | term(), StateName :: atom(), StateData :: term()) -> term()).
-terminate(_Reason, _StateName, _State) ->
+terminate(Reason, StateName, State) ->
+    io:format("Kill ~p, ~p, ~p~n", [Reason, StateName, State]),
     ok.
 
 %%--------------------------------------------------------------------

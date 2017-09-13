@@ -35,7 +35,12 @@ handle_connect(ConnHandle, ProtocolVersion) ->
     "~n   ConnHandle:      ~p"
     "~n   ProtocolVersion: ~p"
     "", [ConnHandle, ProtocolVersion]),
-    ok.
+    case base_mgw:get_rec(ConnHandle, pid) of
+        Pid when is_pid(Pid) ->
+            ok;
+        _ ->
+            {error, 402}
+    end.
 
 %%----------------------------------------------------------------------
 %% Invoked when a connection is teared down

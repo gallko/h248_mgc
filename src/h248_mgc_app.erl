@@ -23,6 +23,10 @@ start(_StartType, _StartArgs) ->
     megaco:enable_trace(min, io),
     Return = h248_mgc_sup:start_link(),
 
+%%    init table
+    base_mgw:init(),
+
+
     timer:sleep(timer:seconds(1)),
     start_defualt_for_debug(),
 
@@ -46,9 +50,21 @@ start() ->
 %%====================================================================
 
 start_defualt_for_debug() ->
-    Mid_MGC = load_mgc:add_user("192.168.1.103", 2944, callback, []),
+    Mid_MGC = load_mgc:add_user("192.168.0.81", 2944, callback, []),
     load_mgc:add_transport(Mid_MGC, megaco_pretty_text_encoder, megaco_udp),
-    mgw_sup:add_mgw(Mid_MGC, "192.168.1.108").
+    case mgw_sup:add_mgw(Mid_MGC, "192.168.0.143", 72) of
+        {ok, _MGw} ->
+            [];
+        {error, _} ->
+            []
+    end,
+    case mgw_sup:add_mgw(Mid_MGC, "192.168.0.145", 72) of
+        {ok, _MGw1} ->
+            [];
+        {error, _} ->
+            []
+    end.
+
 
 loop() ->
     receive
