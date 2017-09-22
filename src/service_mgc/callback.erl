@@ -11,6 +11,7 @@
 
 -include_lib("megaco/include/megaco.hrl").
 -include_lib("megaco/include/megaco_message_v1.hrl").
+-include("../include/struct_load.hrl").
 
 %% callback API
 -export([
@@ -34,12 +35,17 @@ handle_connect(ConnHandle, ProtocolVersion) ->
     log:log(debug, "handle_connect -> entry with"
     "~n   ConnHandle:      ~p"
     "~n   ProtocolVersion: ~p"
-    "", [ConnHandle, ProtocolVersion]),
-    case base_mgw:get_rec(ConnHandle, pid) of
-        Pid when is_pid(Pid) ->
-            ok;
-        _ ->
-            {error, 402}
+    "~n", [ConnHandle, ProtocolVersion]),
+    case connHandle_in_MgwId(ConnHandle) of
+        unknown ->
+            error;
+        ID ->
+            case ets:lookup(base_mgw, ID) of
+                [Rec | _] when is_record(Rec, base_mgw_rec) ->
+                    ok;
+                _ ->
+                    error
+            end
     end.
 
 %%----------------------------------------------------------------------
@@ -51,7 +57,7 @@ handle_disconnect(ConnHandle, ProtocolVersion, Reason) ->
     "~n   ConnHandle:      ~p"
     "~n   ProtocolVersion: ~p"
     "~n   Reason:          ~p"
-    "", [ConnHandle, ProtocolVersion, Reason]),
+    "~n", [ConnHandle, ProtocolVersion, Reason]),
     megaco:cancel(ConnHandle, Reason), % Cancel the outstanding messages
     ok.
 
@@ -64,7 +70,7 @@ handle_syntax_error(ReceiveHandle, ProtocolVersion, ErrorDescriptor) ->
     "~n   ReceiveHandle:   ~p"
     "~n   ProtocolVersion: ~p"
     "~n   ErrorDescriptor: ~p"
-    "", [ReceiveHandle, ProtocolVersion, ErrorDescriptor]),
+    "~n", [ReceiveHandle, ProtocolVersion, ErrorDescriptor]),
     reply.
 
 %%----------------------------------------------------------------------
@@ -76,7 +82,7 @@ handle_message_error(ConnHandle, ProtocolVersion, ErrorDescriptor) ->
     "~n   ConnHandle:      ~p"
     "~n   ProtocolVersion: ~p"
     "~n   ErrorDescriptor: ~p"
-    "", [ConnHandle, ProtocolVersion, ErrorDescriptor]),
+    "~n", [ConnHandle, ProtocolVersion, ErrorDescriptor]),
     no_reply.
 
 %%----------------------------------------------------------------------
@@ -89,16 +95,23 @@ handle_trans_request(ConnHandle, ProtocolVersion, ActionRequests) ->
     "~n   ProtocolVersion: ~p"
     "~n   ActionRequests:  ~p"
     "~n", [ConnHandle, ProtocolVersion, ActionRequests]),
-    case work_ActionRequests(ActionRequests) of
-        {ok, Ask} ->
-            log:log(debug, "Action reply:  ~p", [Ask]),
-            {discard_ack, Ask};
-        {error, ErrCode, ErrText} ->
-            ErrAsk = #'ErrorDescriptor'{errorCode = ErrCode, errorText = ErrText},
-            {discard_ack, ErrAsk};
-        _ ->
-            ErrAsk = #'ErrorDescriptor'{errorCode = ?megaco_not_implemented, errorText = "In developing."},
-            {discard_ack, ErrAsk}
+    io:format("selfpid ~p~n", [self()]),
+    case connHandle_in_MgwId(ConnHandle) of
+        unknown ->
+            ignore_trans_request;
+        ID ->
+            Ask = case ets:lookup(base_mgw, ID) of
+                      unknown ->
+                          ignore_trans_request;
+                      _MgwId ->
+                          ets:insert(base_request, #base_request_rec{id = self(), id_mgw = ID}),
+                          mgw:work_actions(ActionRequests)
+                  end,
+            if Ask /= unknown ->
+                ets:delete(base_request, self());
+                true -> []
+            end,
+            Ask
     end.
 
 %%----------------------------------------------------------------------
@@ -120,7 +133,7 @@ handle_trans_reply(ConnHandle, ProtocolVersion, ActualReply, ReplyData) ->
     "~n   ProtocolVersion: ~p"
     "~n   ActualReply:     ~p"
     "~n   ReplyData:       ~p"
-    "", [ConnHandle, ProtocolVersion, ActualReply, ReplyData]),
+    "~n", [ConnHandle, ProtocolVersion, ActualReply, ReplyData]),
     ok.
 
 %%----------------------------------------------------------------------
@@ -133,7 +146,14 @@ handle_trans_ack(ConnHandle, ProtocolVersion, AckStatus, AckData) ->
     "~n   ProtocolVersion: ~p"
     "~n   ckStatus:        ~p"
     "~n   AckData:         ~p"
-    "", [ConnHandle, ProtocolVersion, AckStatus, AckData]),
+    "~n", [ConnHandle, ProtocolVersion, AckStatus, AckData]),
+    MgwID = connHandle_in_MgwId(ConnHandle),
+    if
+        (AckStatus == ok) andalso (AckData == AckData) ->
+            erlang:spawn(mgw, connection_established, [MgwID]);
+        true ->
+            []
+    end,
     ok.
 
 %%----------------------------------------------------------------------
@@ -145,7 +165,7 @@ handle_unexpected_trans(ConnHandle, ProtocolVersion, Trans) ->
     "~n   ConnHandle:      ~p"
     "~n   ProtocolVersion: ~p"
     "~n   Trans:           ~p"
-    "", [ConnHandle, ProtocolVersion, Trans]),
+    "~n", [ConnHandle, ProtocolVersion, Trans]),
     ok.
 
 
@@ -156,27 +176,19 @@ handle_unexpected_trans(ConnHandle, ProtocolVersion, Trans) ->
 handle_trans_request_abort(_ConnHandle, _ProtocolVersion, _TransId, _Pid) ->
     ok.
 
-%%%===================================================================
-%%% Private functions
-%%%===================================================================
+%%----------------------------------------------------------------------
+%% Private function
+%%----------------------------------------------------------------------
 
-work_ActionRequests(ActionRequests) ->
-%%  Пробегаемся по всем контекстам
-    Fun = fun(#'ActionRequest'{contextId = Ctx, commandRequests = CommandRequest}) ->
-        work_ActionRequest(Ctx, CommandRequest)
-        end,
-    Asn = [Fun(A) || A <- ActionRequests],
-    {ok, Asn}.
-
-work_ActionRequest(ContextNum, CommandRequest) ->
-%%  пробегаемся по все командам в ContextNum
-    Fun = fun(Ctx, #'CommandRequest'{command = Comand}) ->
-        work_Comand(Ctx, Comand)
-        end,
-    ReplyCmd = [Fun(ContextNum, Cmd) || Cmd <- CommandRequest],
-    #'ActionReply'{contextId = ContextNum, commandReply = ReplyCmd}.
-
-work_Comand(_ContextNum, {serviceChangeReq, #'ServiceChangeRequest'{terminationID = TID, serviceChangeParms = _ServParam}}) ->
-    ServiceChangeResult = {serviceChangeResParms, #'ServiceChangeResParm'{}},
-    Reply = #'ServiceChangeReply'{terminationID = TID, serviceChangeResult = ServiceChangeResult},
-    {serviceChangeReply, Reply}.
+connHandle_in_MgwId(#megaco_conn_handle{
+    remote_mid = {ip4Address, #'IP4Address'{address = [A, B, C, D], portNumber = Port}}
+}) ->
+    list_to_atom(
+        integer_to_list(A) ++ "." ++
+            integer_to_list(B) ++ "." ++
+            integer_to_list(C) ++ "." ++
+            integer_to_list(D) ++ ":" ++
+            integer_to_list(Port)
+    );
+connHandle_in_MgwId(_) ->
+    unknown.

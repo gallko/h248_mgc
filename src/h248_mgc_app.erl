@@ -7,6 +7,8 @@
 
 -behaviour(application).
 
+-include("../include/struct_load.hrl").
+
 %% Public
 -export([start/0]).
 
@@ -24,10 +26,10 @@ start(_StartType, _StartArgs) ->
     Return = h248_mgc_sup:start_link(),
 
 %%    init table
-    base_mgw:init(),
+    ets:new(base_mgw, [ordered_set, public, named_table, {keypos, #base_mgw_rec.name}]),
+    ets:new(base_request, [ordered_set, public, named_table, {keypos, #base_request_rec.id}]),
 
-
-    timer:sleep(timer:seconds(1)),
+    ping_mgw:start(),
     start_defualt_for_debug(),
 
     Return.
@@ -50,15 +52,15 @@ start() ->
 %%====================================================================
 
 start_defualt_for_debug() ->
-    Mid_MGC = load_mgc:add_user("192.168.0.81", 2944, callback, []),
-    load_mgc:add_transport(Mid_MGC, megaco_pretty_text_encoder, megaco_udp),
-    case mgw_sup:add_mgw(Mid_MGC, "192.168.0.143", 72) of
+    Mid_MGC = mgc:add_user("192.168.0.81", 2944, callback, []),
+    mgc:add_transport(Mid_MGC, megaco_pretty_text_encoder, megaco_udp),
+    case mgw:add(Mid_MGC, "192.168.0.143", 72) of
         {ok, _MGw} ->
             [];
         {error, _} ->
             []
     end,
-    case mgw_sup:add_mgw(Mid_MGC, "192.168.0.145", 72) of
+    case mgw:add(Mid_MGC, "192.168.0.145", 72) of
         {ok, _MGw1} ->
             [];
         {error, _} ->
