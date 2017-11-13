@@ -17,34 +17,34 @@
 %%----------------------------------------------------------------------
 
 log(warning, F) ->
-    io:format("MGC[warning]: " ++ F);
+	io:format("MGC[warning]: " ++ F);
 
 log(notify, F) ->
-    io:format("MGC[notify]: " ++ F);
+	io:format("MGC[notify]: " ++ F);
 
 log(error, F) ->
-    io:format("MGC[error]: " ++ F);
+	io:format("MGC[error]: " ++ F);
 
 log(debug, F) ->
-    io:format("MGC[debug]: " ++ F).
+	io:format("MGC[debug]: " ++ F).
 
 log(warning, F, A) ->
-    io:format("MGC[warning]: " ++ F, A);
+	io:format("MGC[warning]: " ++ F, A);
 
 log(notify, F, A) ->
-    io:format("MGC[notify]: " ++ F, A);
+	io:format("MGC[notify]: " ++ F, A);
 
 log(error, F, A) ->
-    io:format("MGC[error]: " ++ F, A);
+	io:format("MGC[error]: " ++ F, A);
 
 log(debug, F, A) ->
-    io:format("MGC[debug]: " ++ F, A).
+	io:format("MGC[debug]: " ++ F, A).
 
 %% -----------------------------------------------------------------------
 
 inline_trace(true) ->
-    megaco:enable_trace(max, io);
+	megaco:enable_trace(max, io);
 inline_trace(false) ->
-    megaco:disable_trace();
+	megaco:disable_trace();
 inline_trace(_) ->
-    ok.
+	ok.

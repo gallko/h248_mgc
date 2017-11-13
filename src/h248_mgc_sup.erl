@@ -20,8 +20,8 @@
 %%====================================================================
 
 start_link() ->
-    log:log(debug, "start link [~p:~p]~n", [?MODULE, ?LINE]),
-    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+	log:log(debug, "start link [~p:~p]~n", [?MODULE, ?LINE]),
+	supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 %%====================================================================
 %% Supervisor callbacks
@@ -30,12 +30,12 @@ start_link() ->
 %% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
 init([]) ->
 %%    конфиг
-    RestartStrategy = one_for_one, % one_for_one | one_for_all | rest_for_one
-    Intensity = 10, %% max restarts
-    Period = 1000, %% in period of time
-    SupervisorSpecification = {RestartStrategy, Intensity, Period},
-    log:log(debug, "   Start MGC supervisor with parametrs: ~p~n", [SupervisorSpecification]),
-    {ok, {SupervisorSpecification, []}}.
+	RestartStrategy = one_for_one, % one_for_one | one_for_all | rest_for_one
+	Intensity = 10, %% max restarts
+	Period = 1000, %% in period of time
+	SupervisorSpecification = {RestartStrategy, Intensity, Period},
+	log:log(debug, "   Start MGC supervisor with parametrs: ~p~n", [SupervisorSpecification]),
+	{ok, {SupervisorSpecification, []}}.
 
 %%====================================================================
 %% Internal functions
