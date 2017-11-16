@@ -20,7 +20,7 @@
 %% API
 -export([
 	add/3, add/4,
-	delete/2,
+%%	delete/2,
 
 	connection_lost/1,
 	connection_established/1,
@@ -54,36 +54,37 @@ add(MidMGC, Ip, Port, NumPorts) ->
 	       end,
 	MidMGW = {ip4Address, #'IP4Address'{address = Addr, portNumber = Port}},
 	MgwName = list_to_atom(Ip ++ ":" ++ integer_to_list(Port)),
+	ets:new(MgwName, [ordered_set, public, named_table, {keypos, #base_line_rec.tid}]),
 	ets:insert(base_mgw, #base_mgw_rec{
 		id_rec = MgwName,
 		mid_mgw = MidMGW,
 		mid_mgc = MidMGC,
-		count_port = 72,
+		count_port = NumPorts,
 		status = offline}),
 	log:log(notify, "Add MGW [~p]... ok~n", [MgwName]),
 	{ok, MgwName}.
 
 %% return ok | []
-delete(IdMGW) ->
-	case base_mgw:get_rec(IdMGW, conn_handle) of
-		unknown ->
-			[];
-		ConnHandle when is_record(ConnHandle, megaco_conn_handle) ->
-			ets:delete(base_mgw, IdMGW),
-%%            base_mgw:delete(IdMGW),
-			case megaco:disconnect(ConnHandle, delete_adm) of
-				ok -> ok;
-				{error, _Reason} ->
-					[]
-			end;
-		_ ->
-			[]
-	end.
-delete(Ip, Port) when is_list(Ip) and is_integer(Port) ->
-	IdMGW = list_to_atom(Ip ++ ":" ++ integer_to_list(Port)),
-	delete(IdMGW);
-delete(_Ip, _Port) ->
-	[].
+%delete(IdMGW) ->
+%	case base_mgw:get_rec(IdMGW, conn_handle) of
+%		unknown ->
+%			[];
+%		ConnHandle when is_record(ConnHandle, megaco_conn_handle) ->
+%			ets:delete(base_mgw, IdMGW),
+%%%            base_mgw:delete(IdMGW),
+%			case megaco:disconnect(ConnHandle, delete_adm) of
+%				ok -> ok;
+%				{error, _Reason} ->
+%					[]
+%			end;
+%		_ ->
+%			[]
+%	end.
+%delete(Ip, Port) when is_list(Ip) and is_integer(Port) ->
+%	IdMGW = list_to_atom(Ip ++ ":" ++ integer_to_list(Port)),
+%	delete(IdMGW);
+%delete(_Ip, _Port) ->
+%	[].
 
 connection_lost(KeyMG) ->
 	case ets:lookup(base_mgw, KeyMG) of
@@ -177,7 +178,7 @@ work_context(#'ActionRequest'{contextId = ?megaco_all_context_id}) ->
 	#'ErrorDescriptor'{errorCode = ?megaco_incorrect_identifier, errorText = "*"};
 work_context(#'ActionRequest'{contextId = ?megaco_choose_context_id}) ->
 	#'ErrorDescriptor'{errorCode = ?megaco_incorrect_identifier, errorText = "$"};
-work_context(#'ActionRequest'{contextId = Ctx, commandRequests = Comands}) ->
+work_context(#'ActionRequest'{contextId = Ctx, commandRequests = _Comands}) ->
 %%    принадлежит контексту
 	#'ErrorDescriptor'{
 		errorCode = ?megaco_not_implemented,
@@ -197,7 +198,7 @@ work_commands([#'CommandRequest'{command = Command} | Commands], Ask) ->
 work_commands([], Ask) ->
 	{ok, Ask}.
 
-work_command({serviceChangeReq, #'ServiceChangeRequest'{terminationID = TermID, serviceChangeParms = Params}}) ->
+work_command({serviceChangeReq, #'ServiceChangeRequest'{terminationID = TermID, serviceChangeParms = _Params}}) ->
 %%  TODO    обработать команду
 	ServiceChangeResult = {serviceChangeResParms,
 		#'ServiceChangeResParm'{

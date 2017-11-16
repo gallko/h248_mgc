@@ -11,9 +11,11 @@
 -include_lib("megaco/include/megaco_message_v1.hrl").
 
 %% name of tables
--define(TABLE_MGW, base_mgw).
--define(TABLE_REQUEST, base_request).
--define(TABLE_SUBSCRIBER, base_line).
+-define(TABLE_MGW, base_mgw).           %% данные о MGW
+-define(TABLE_REQUEST, base_request).   %% данные о запросе, используется в request
+-define(TABLE_SUBSCRIBER, base_number). %% данные об абоненте, number of telephone, MGW_ID, TermID
+-define(TABLE_SIGNALS, base_signals).   %% список сигналов                              #base_signals_rec
+-define(TABLE_EVENTS, base_events).     %% список событий на которе подписывается SSW   #base_events_rec
 
 %% default define
 -define(DEV, "eth1").

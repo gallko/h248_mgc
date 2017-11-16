@@ -60,7 +60,7 @@ add_transport({ip4Address, Mid}, Encoding, Protocol) when
 	log:log(debug, "RecHandle: ~p~n", [NewHandle]),
 	start_transport(Mid#'IP4Address'.portNumber, NewHandle);
 
-add_transport(Mid, Encoding, Protocol) ->
+add_transport(_Mid, _Encoding, _Protocol) ->
 	[].
 
 
@@ -85,7 +85,7 @@ start_transport(MgcPort, RecHandle) ->
 		SendMod -> {error, {bad_send_mod, SendMod}}
 	end.
 
-start_tcp(MgcPort, RecHandle) ->
+start_tcp(_MgcPort, _RecHandle) ->
 	[].
 
 start_udp(MgcPort, RecHandle) ->

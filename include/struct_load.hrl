@@ -26,15 +26,31 @@
 	apply_cmd = []  %% [{table_name, table_record}, ...]
 }).
 
+-record(base_subscriber, {
+	number  :: string(),    %% "89991893661"
+	mgw_id  :: atom(),      %% '192.168.0.143:2944'
+	tid     :: string()     %% "a1"
+}).
+
 -record(base_line_rec, {
-	id = 0  :: atom(),              %% '192.168.0.143:2944-A1'
-	number  :: string(),            %% "89991893661"
+%%	for each MGW is created new ets table
 	tid     :: string(),            %% "a1"
-	id_mgw  :: atom(),              %% '192.168.0.143:2944' -> base_mgw_rec:id_rec
-	
-	service = true      :: boolean(),   %%
+	regScript :: string(),
+
+	service = false     :: boolean(),   %%
 	eventID = 1         :: integer(),   %% id events -> base_mgw_events:id
-	signalID= 0         :: integer(),   %% id signal -> base_mgw_signal:id
+	signalID= "null"    :: string(),    %% id signal -> base_mgw_signal:id
+	context = 0         :: integer(),   %% current context
 	
 	none
+}).
+
+-record(base_signals_rec, {
+	id = nullsignal :: atom(),      %% atom-name signal
+	signal = []     :: list()       %% [] | [{signal, #'Signal'{...}}]
+}).
+
+-record(base_events_rec, {
+	id = 1          :: integer(),   %% number of events
+	events = []     :: list()       %% list of #'RequestedEvent'
 }).
