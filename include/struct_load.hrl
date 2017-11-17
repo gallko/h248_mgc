@@ -23,6 +23,7 @@
 -record(base_request_rec, {
 	id,             %% pid
 	id_mgw,         %% '192.168.0.143:2944'
+	connHandle,     %% ConnHandle
 	apply_cmd = []  %% [{table_name, table_record}, ...]
 }).
 
@@ -36,6 +37,7 @@
 %%	for each MGW is created new ets table
 	tid     :: string(),            %% "a1"
 	regScript :: string(),
+	pid_awaiting :: pid(),
 
 	service = false     :: boolean(),   %%
 	eventID = 1         :: integer(),   %% id events -> base_mgw_events:id
@@ -53,4 +55,9 @@
 -record(base_events_rec, {
 	id = 1          :: integer(),   %% number of events
 	events = []     :: list()       %% list of #'RequestedEvent'
+}).
+
+-record(info_lua, {
+	conn_handle,    %% #megaco_conn_handle
+	record_tid      %% #base_line_rec
 }).

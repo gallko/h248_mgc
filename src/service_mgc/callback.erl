@@ -104,7 +104,7 @@ handle_trans_request(ConnHandle, ProtocolVersion, ActionRequests) ->
 				      unknown ->
 					      ignore_trans_request;
 				      _MgwId ->
-					      ets:insert(base_request, #base_request_rec{id = self(), id_mgw = ID}),
+					      ets:insert(base_request, #base_request_rec{id = self(), id_mgw = ID, connHandle = ConnHandle}),
 					      mgw:work_actions(ActionRequests)
 			      end,
 			if Ask /= unknown ->

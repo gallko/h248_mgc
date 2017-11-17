@@ -16,7 +16,14 @@
 	greate_ActionRequest/2,
 	greate_ServiceChange/3,
 	greate_subtract/1,
-	greate_AmmRequest/2
+	greate_AmmRequest/2,
+
+
+	greate_CommandAdd/1,
+	greate_CommandModify/1,
+	greate_CommandMove/1,
+	greate_StreamParms/3,
+	greate_MediaDescriptor/1
 ]).
 
 timeISO8610() ->
@@ -56,3 +63,20 @@ greate_AmmRequest(TermID, ListDescriptor) ->
 		terminationID = [#megaco_term_id{id = [TermID]}],
 		descriptors = ListDescriptor
 	}.
+
+greate_StreamParms(LCD, LD, RD) ->
+	{oneStream, #'StreamParms'{
+		localControlDescriptor = LCD,
+		localDescriptor = LD,
+		remoteDescriptor = RD
+	}}.
+
+greate_MediaDescriptor(StreamParms) ->
+	{mediaDescriptor, #'MediaDescriptor'{streams = StreamParms}}.
+
+greate_CommandAdd(AmmRequest) ->
+	#'CommandRequest'{command = {addReq, AmmRequest}}.
+greate_CommandModify(AmmRequest) ->
+	#'CommandRequest'{command = {modReq, AmmRequest}}.
+greate_CommandMove(AmmRequest) ->
+	#'CommandRequest'{command = {moveReq, AmmRequest}}.

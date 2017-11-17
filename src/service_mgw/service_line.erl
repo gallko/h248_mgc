@@ -18,6 +18,9 @@
 -export([
 	add/3,
 	registered_subscribers/2,
+	start_talk/4,
+
+
 	update_subscriber_SigEv/5,
 	update_subscriber_signal/4,
 	update_subscriber_events/4
@@ -49,18 +52,14 @@ add(TermID, Number, MGW_Id) ->
 	MGW_Id :: atom(),
 	ConnHandle :: term()) -> ok.
 registered_subscribers(MGW_Id, ConnHandle) ->
-%%	SubtractAll = message:greate_subtract(?megaco_all),
-%%	ActionRequestsSub = message:greate_ActionRequest(?megaco_all_context_id, [SubtractAll]),
-%%	R = megaco:call(ConnHandle, [ActionRequestsSub], []),
-%%	case R of
-%%		{1, {ok, _}} ->
-%%			access_lua:work_registred(ets:first(MGW_Id), ConnHandle, MGW_Id),
-%%			mgw:update_last_access(MGW_Id);
-%%		_ ->
-%%			mgw:connection_lost(MGW_Id)
-%%	end,
 	access_lua:work_registred(ets:first(MGW_Id), ConnHandle, MGW_Id),
 	ok.
+
+start_talk(ConnHandle, Ctx, RecTid, ObservedEvents) ->
+%%	'ObservedEventsDescriptor'
+	access_lua:start_talk(ConnHandle, Ctx, RecTid),
+	ok.
+
 
 %%----------------------------------------------------------------------
 %% Private function

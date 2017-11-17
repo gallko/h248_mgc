@@ -11,29 +11,11 @@
 -include("../include/struct_load.hrl").
 -include("../include/define_mgc.hrl").
 
-%%
--export([
-	run2/0
-]).
 %% API
 -export([
-	work_registred/3
+	work_registred/3,
+	start_talk/3
 ]).
-
-run2() ->
-%%	LuaScript = <<"hello_table = { hello=\"world\" }; return hello_table">>,
-%%	{[_Table], Lua0} = luerl:do(LuaScript),
-%%
-%%	{World, Lua1} = luerl:get_table([hello_table, hello], Lua0),
-%%
-%%
-%%	Lua2 = luerl:set_table([connHandle], fg, Lua0),
-%%	{HelloDict,Lua3} = luerl:get_table([connHandle], Lua2),
-%%
-%%	HelloDict1 = luerl:decode(HelloDict, Lua3),
-
-
-[].
 
 work_registred('$end_of_table', _ConnHandle, _MGW_Id) -> ok;
 work_registred(Key, ConnHandle, MGW_Id) ->
@@ -45,10 +27,10 @@ work_registred(Key, ConnHandle, MGW_Id) ->
 		{_Res, _State3} = luerl:call_function([registration],
 			[
 				list_to_binary(Record#base_line_rec.tid),
-%%				Record#base_line_rec.context,
+				Record#base_line_rec.context,
 %%				list_to_binary(Record#base_line_rec.signalID),
 %%				Record#base_line_rec.eventID,
-				term_to_binary(ConnHandle)
+				term_to_binary(#info_lua{conn_handle = ConnHandle, record_tid = Record})
 			], State2)
 	catch
 		_:_ ->
@@ -56,6 +38,25 @@ work_registred(Key, ConnHandle, MGW_Id) ->
 	end,
 	luerl:stop(State2),
 	work_registred(ets:next(MGW_Id, Key), ConnHandle, MGW_Id).
+
+start_talk(ConnHandle, Ctx, RecTid) ->
+	State = luerl:init(),
+	State1 = load_func_registred(State),
+	State2 = load_lua_file(RecTid#base_line_rec.regScript, State1),
+	try
+		{_Res, _State3} = luerl:call_function([start_talk],
+			[
+				list_to_binary(RecTid#base_line_rec.tid),
+				Ctx,
+%%				list_to_binary(Record#base_line_rec.signalID),
+%%				Record#base_line_rec.eventID,
+				term_to_binary(#info_lua{conn_handle = ConnHandle, record_tid = RecTid})
+			], State2)
+	catch
+		_:_ ->
+			io:format("Opps..~n")
+	end,
+	luerl:stop(State2).
 
 %%----------------------------------------------------------------------
 %% Private function

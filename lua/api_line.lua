@@ -21,7 +21,7 @@ local map_error = {
 
     [100]   = 'Binary data is wrong'
 }
-local map_event = {
+map_event = {
     [0]     = 'ok',
     [1]     = 'timeout',
     [2]     = 'off_hook',
@@ -31,26 +31,47 @@ local map_event = {
     [6]     = 'number',
     [7]     = 'disconnect_remote'
 }
+map_streamMode = {
+    sendOnly    = 'sendOnly',
+    recvOnly    = 'recvOnly',
+    sendRecv    = 'sendRecv',
+    inactive    = 'inactive',
+    loopBack    = 'loopBack'
+}
 
-function api_line:new(termID, bin)
+function api_line:new(termID, context, bin)
     newObj = {
         _bin = bin,
         _termID = termID,
+        _context = context,
         _error = 0
     }
     self.__index = self
     return setmetatable(newObj, self)
 end
+
 function api_line:printall()
-    print("TID: " .. self._termID)
-    print("Ctx: " .. self._context)
-    print("Signal: " .. self._signal)
-    print("EventID: " .. self._eventID)
-    print("Error: " .. self._error)
+    if self._termID ~= nil then
+        print("TID: " .. self._termID)
+    end
+    if self._context ~= nil then
+        print("Ctx: " .. self._context)
+    end
+    if self._signal ~= nil then
+        print("Signal: " .. self._signal)
+    end
+    if self._eventID ~= nil then
+        print("EventID: " .. self._eventID)
+    end
+    if self._error ~= nil then
+        print("Error: " .. self._error)
+    end
 end
+
 function api_line:get_error()
     return self._error, map_error[self._error]
 end
+
 function api_line:sendRestoreService()
     local result = erlCallbackFunc(map_func.sendRestoreService, self._bin, self._termID)
     self._error = result
@@ -65,7 +86,7 @@ end
 function api_line:subtract()
     -- delete TermID in current context
     local result
-    if self._context == nil then
+    if self._context == 0 then
         result = erlCallbackFunc(map_func.subtractAll, self._bin, self._termID)
     else
         result = erlCallbackFunc(map_func.subtract, self._bin, self._context, self._termID)
@@ -79,9 +100,12 @@ function api_line:setSignal(strSignal)
 end
 
 function api_line:setEvents(idEvents)
-    self._events = idEvents
+    self._event = idEvents
 end
 
+function api_line:setStreamMode(streamMode)
+    self._streamMode = streamMode
+end
 
 function api_line:sendModify()
 --[Ctx, TermID, Events, Signal, StreamMode, ReserveValue, ReserveGroup, tdmc_EchoCancel, tdmc_Gain]

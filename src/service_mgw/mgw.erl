@@ -164,7 +164,7 @@ work_actions([], Ask) ->
 
 work_context(#'ActionRequest'{contextId = ?megaco_null_context_id, commandRequests = Commands}) ->
 %%  пробегаемся по все командам в контексте
-	case work_commands(Commands) of
+	case work_commands(?megaco_null_context_id, Commands) of
 		{ok, Ask} ->
 %%  TODO    применить команды
 			#'ActionReply'{contextId = ?megaco_null_context_id, commandReply = Ask};
@@ -185,20 +185,20 @@ work_context(#'ActionRequest'{contextId = Ctx, commandRequests = _Comands}) ->
 		errorText = lists:append(["context = ", integer_to_list(Ctx), " "])
 	}.
 
-work_commands(Commands) ->
-	work_commands(Commands, []).
+work_commands(Ctx, Commands) ->
+	work_commands(Ctx, Commands, []).
 
-work_commands([#'CommandRequest'{command = Command} | Commands], Ask) ->
-	case work_command(Command) of
+work_commands(Ctx, [#'CommandRequest'{command = Command} | Commands], Ask) ->
+	case work_command(Ctx, Command) of
 		{ok, Result} ->
-			work_commands(Commands, Ask ++ [Result]);
+			work_commands(Ctx, Commands, Ask ++ [Result]);
 		{error, Error} ->
 			{error, Error}
 	end;
-work_commands([], Ask) ->
+work_commands(_Ctx, [], Ask) ->
 	{ok, Ask}.
 
-work_command({serviceChangeReq, #'ServiceChangeRequest'{terminationID = TermID, serviceChangeParms = _Params}}) ->
+work_command(_Ctx, {serviceChangeReq, #'ServiceChangeRequest'{terminationID = TermID, serviceChangeParms = _Params}}) ->
 %%  TODO    обработать команду
 	ServiceChangeResult = {serviceChangeResParms,
 		#'ServiceChangeResParm'{
@@ -235,9 +235,41 @@ work_command({serviceChangeReq, #'ServiceChangeRequest'{terminationID = TermID, 
 				errorText = "Only ROOT TID"
 			}}
 	end;
-work_command({notifyReq, #'NotifyRequest'{terminationID = _TermID, observedEventsDescriptor = _Event}}) ->
-	{error, #'ErrorDescriptor'{errorCode = ?megaco_not_implemented, errorText = "NotifyRequest"}};
-work_command(_) ->
+work_command(Ctx, {notifyReq, #'NotifyRequest'{terminationID = [TermID], observedEventsDescriptor = ObservedEvents}}) ->
+	case TermID of
+		?megaco_root_termination_id ->
+			{error, #'ErrorDescriptor'{errorCode = ?megaco_not_implemented, errorText = "Root termination ID"}};
+		#megaco_term_id{id = [?megaco_all]} ->
+			{error, #'ErrorDescriptor'{errorCode = ?megaco_not_implemented, errorText = "* termination ID"}};
+		#megaco_term_id{id = [?megaco_choose]} ->
+			{error, #'ErrorDescriptor'{errorCode = ?megaco_not_implemented, errorText = "$ termination ID"}};
+		#megaco_term_id{id = [TTermID | _]} ->
+			case ets:lookup(?TABLE_REQUEST, self()) of
+				[#base_request_rec{id_mgw = IdMGW, connHandle = ConnHandle} | _] ->
+					try ets:lookup(IdMGW, string:to_lower(TTermID)) of
+						[RecTid | _]->
+%%							TODO проверить ID events и сам эвент
+							erlang:spawn(service_line, start_talk, [ConnHandle, Ctx, RecTid, ObservedEvents]), %% запустить скрипт начала звонка
+							{ok, {notifyReply, #'NotifyReply'{terminationID = [#megaco_term_id{id = [TTermID]}]}}};
+						[] ->
+%%							TODO ТИД не существует
+							[]
+					catch
+						_:_ ->
+							{error, #'ErrorDescriptor'{errorCode = ?megaco_not_implemented, errorText = "NotifyRequest"}}
+					end;
+				[] ->
+					{error, #'ErrorDescriptor'{errorCode = ?megaco_not_implemented, errorText = "NotifyRequest"}}
+			end
+	end;
+
+%%	#'ObservedEventsDescriptor'
+
+%%	{error, #'ErrorDescriptor'{errorCode = ?megaco_not_implemented, errorText = "NotifyRequest"}};
+
+
+
+work_command(_, _) ->
 	{error, #'ErrorDescriptor'{errorCode = ?megaco_not_implemented, errorText = "Only ServiceChange or Notify"}}.
 
 
