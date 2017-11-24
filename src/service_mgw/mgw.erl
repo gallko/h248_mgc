@@ -248,12 +248,11 @@ work_command(Ctx, {notifyReq, #'NotifyRequest'{terminationID = [TermID], observe
 				[#base_request_rec{id_mgw = IdMGW, connHandle = ConnHandle} | _] ->
 					try ets:lookup(IdMGW, string:to_lower(TTermID)) of
 						[RecTid | _]->
-%%							TODO проверить ID events и сам эвент
-							erlang:spawn(service_line, start_talk, [ConnHandle, Ctx, RecTid, ObservedEvents]), %% запустить скрипт начала звонка
+							erlang:spawn(service_line, callback_events, [ConnHandle, Ctx, RecTid, ObservedEvents]), %% запустить скрипт начала звонка
 							{ok, {notifyReply, #'NotifyReply'{terminationID = [#megaco_term_id{id = [TTermID]}]}}};
 						[] ->
 %%							TODO ТИД не существует
-							[]
+							{error, #'ErrorDescriptor'{errorCode = ?megaco_not_implemented, errorText = "Not fount TermID"}}
 					catch
 						_:_ ->
 							{error, #'ErrorDescriptor'{errorCode = ?megaco_not_implemented, errorText = "NotifyRequest"}}

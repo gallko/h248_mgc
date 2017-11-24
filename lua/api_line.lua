@@ -11,7 +11,9 @@ local map_func = {
     subtractAll         = 2,
     subtract            = 3,
 
-    sendModify          = 4
+    sendModify          = 4,
+
+    wait_events         = 5
 }
 local map_error = {
     [0]     = 'Successes',
@@ -22,14 +24,13 @@ local map_error = {
     [100]   = 'Binary data is wrong'
 }
 map_event = {
-    [0]     = 'ok',
-    [1]     = 'timeout',
-    [2]     = 'off_hook',
-    [3]     = 'on_hook',
-    [4]     = 'flash',
-    [5]     = 'digit',
-    [6]     = 'number',
-    [7]     = 'disconnect_remote'
+    ['timeout'] = 1,
+    ['of'] = 2,
+    ['on'] = 3,
+    ['fl'] = 4,
+    ['digit'] = 5,
+    ['number'] = 6,
+    ['disconnect_remote'] = 7
 }
 map_streamMode = {
     sendOnly    = 'sendOnly',
@@ -39,9 +40,8 @@ map_streamMode = {
     loopBack    = 'loopBack'
 }
 
-function api_line:new(termID, context, bin)
+function api_line:new(termID, context)
     newObj = {
-        _bin = bin,
         _termID = termID,
         _context = context,
         _error = 0
@@ -73,7 +73,7 @@ function api_line:get_error()
 end
 
 function api_line:sendRestoreService()
-    local result = erlCallbackFunc(map_func.sendRestoreService, self._bin, self._termID)
+    local result = erlCallbackFunc(map_func.sendRestoreService, self._termID)
     self._error = result
     return (result == 0)
 end
@@ -87,9 +87,9 @@ function api_line:subtract()
     -- delete TermID in current context
     local result
     if self._context == 0 then
-        result = erlCallbackFunc(map_func.subtractAll, self._bin, self._termID)
+        result = erlCallbackFunc(map_func.subtractAll, self._termID)
     else
-        result = erlCallbackFunc(map_func.subtract, self._bin, self._context, self._termID)
+        result = erlCallbackFunc(map_func.subtract, self._context, self._termID)
     end
     self._error = result
     return result == 0
@@ -109,7 +109,7 @@ end
 
 function api_line:sendModify()
 --[Ctx, TermID, Events, Signal, StreamMode, ReserveValue, ReserveGroup, tdmc_EchoCancel, tdmc_Gain]
-    local result = erlCallbackFunc(map_func.sendModify, self._bin,
+    local result = erlCallbackFunc(map_func.sendModify,
     self._context,
     self._termID,
     self._event,
@@ -121,8 +121,6 @@ function api_line:sendModify()
     self._tdmc_Gain)
     if result == 0 then
         -- delete the applied parameters
-        self._context = nil
-        self._termID = nil
         self._event = nil
         self._signal = nil
         self._streamMode = nil
@@ -133,6 +131,11 @@ function api_line:sendModify()
     end
     self._error = result
     return result == 0
+end
+
+function api_line:wait_events(timeout)
+    local result, event = erlCallbackFunc(map_func.wait_events, timeout)
+    return event
 end
 
 return api_line

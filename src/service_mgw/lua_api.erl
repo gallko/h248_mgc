@@ -42,10 +42,11 @@
 
 erlCallbackFunc([Command | Params], S) when is_number(Command) ->
 	Cmd = trunc(Command),
-	[ConnHandle_B | Prms] = Params,
-	try binary_to_term(ConnHandle_B) of
+%%	[ConnHandle_B | Prms] = Params,
+	{InfoData, S1} = luerl:get_table([infoLua], S),
+	try binary_to_term(InfoData) of
 		T when is_record(T, info_lua) ->
-			erlCallbackFunc(Cmd, T, Prms, S);
+			erlCallbackFunc(Cmd, T, Params, S1);
 		_ ->
 			{[100], S}
 	catch
@@ -103,9 +104,9 @@ erlCallbackFunc(3, InfoData, [Ctx_D, TermID_B], S) when is_number(Ctx_D) andalso
 erlCallbackFunc(4, InfoData, Param, S) ->
 %%	Param = [Ctx, TermID, Events, Signal, StreamMode, ReserveValue, ReserveGroup, tdmc_EchoCancel, tdmc_Gain]
 	case parse_param4(Param, InfoData#info_lua.record_tid) of
-		{error, Description} ->
+		{error, _Description} ->
 			{[1], S};
-		MapPrm ->
+		{MapPrm, RecordTid} ->
 			MediaDescriptor = case maps:is_key('LocalControlDescriptor', MapPrm) of
 				                  true ->
 					                  LCD = maps:get('LocalControlDescriptor', MapPrm),
@@ -127,15 +128,37 @@ erlCallbackFunc(4, InfoData, Param, S) ->
 				[MediaDescriptor, EventsDescriptor, SignalDescriptor]),
 			CommandRequest = message:greate_CommandModify(AmmRequest),
 			ActionRequest = message:greate_ActionRequest(maps:get(context, MapPrm), [CommandRequest]),
+			ets:insert(RecordTid#base_line_rec.table, RecordTid),
+			NewLuaData = InfoData#info_lua{record_tid = RecordTid},
+			S1 = luerl:set_table([infoLua], term_to_binary(NewLuaData), S),
 			R = megaco:call(InfoData#info_lua.conn_handle, [ActionRequest], [{request_timer, ?TIMER_MEGACO_ASK}]),
 			case R of
 				{1, {ok, _Ans}} ->
 %%			TODO check answer (context, term_id)
-					{[0], S};
+					{[0], S1};
 				_ ->
-					{[2], S}
+					{[2], S1}
 			end
 	end;
+
+erlCallbackFunc(5, InfoData, [TimeOut], S) when is_number(TimeOut) ->
+%%  {[Result, Event], S};
+
+	RecTid = InfoData#info_lua.record_tid,
+	ets:insert(RecTid#base_line_rec.table, RecTid#base_line_rec{pid_awaiting = self()}),
+
+	receive
+		on ->
+			{[0, <<"on">>], S};
+		'of'->
+			{[0, <<"of">>], S};
+		_ ->
+			[]
+	after
+		timer:seconds(trunc(TimeOut)) ->
+			{[0, <<"timeout">>], S}
+	end;
+
 
 erlCallbackFunc(_Cmd, _ConnHandle, _List, S) ->
 	{[1], S}.
@@ -149,43 +172,44 @@ parse_param4(Params, RecordTid) ->
 %%	[Ctx, TermID,   Events, Signal, StreamMode, ReserveValue, ReserveGroup, tdmc_EchoCancel, tdmc_Gain]
 %%	[int, str,      int,    str
 	parse_param4(Params, 0, maps:new(), RecordTid).
-parse_param4(_Params, 9, Result, _RecordTid) -> Result;
+parse_param4(_Params, 9, Result, RecordTid) -> {Result, RecordTid};
 parse_param4([H | T], I, Map, RecordTid) ->
-	{K, V} = case I of
-		         0 when is_number(H) -> {context, trunc(H)};
-		         0 when H == nil ->     {context, 0};
+	{K, V, N} = case I of
+		         0 when is_number(H) -> {context, trunc(H), RecordTid};
+		         0 when H == nil ->     {context, 0, RecordTid};
 
 		         1 ->
 			         try string:to_lower(binary_to_list(H)) of
-						 TermId when TermId == RecordTid#base_line_rec.tid -> {termID, TermId};
-						 _ -> {error, "Can't parse parametrs TermID"}
+						 TermId when TermId == RecordTid#base_line_rec.tid -> {termID, TermId, RecordTid};
+						 _ -> {error, "Can't parse parametrs TermID", RecordTid}
 			         catch
-			            _:_ -> {error, "Can't parse parametrs"}
+			            _:_ -> {error, "Can't parse parametrs", RecordTid}
 			         end;
-		         2 when H == nil -> {no_use, nil};
+		         2 when H == nil -> {no_use, nil, RecordTid};
 		         2 when is_number(H) ->
 			         try ets:lookup(?TABLE_EVENTS, trunc(H)) of
 						 [Event | _] ->
 							 {'RequestedEvent', {eventsDescriptor, #'EventsDescriptor'{
 								 requestID = Event#base_events_rec.id,
 								 eventList = Event#base_events_rec.events
-							 }}};
-						 [] -> {error, "Can't not find event ID"}
+							 }}, RecordTid#base_line_rec{eventID = Event#base_events_rec.id}};
+						 [] -> {error, "Can't not find event ID", RecordTid}
 			         catch
-				         _:_ -> {error, "Don't find table of events"}
+				         _:_ -> {error, "Don't find table of events", RecordTid}
 			         end;
 
-		         3 when H == nil -> {no_use, nil};
+		         3 when H == nil -> {no_use, nil, RecordTid};
 				 3 ->
 			         try ets:lookup(?TABLE_SIGNALS, binary_to_list(H)) of
 				         [Signal | _] ->
-					         {'Signal', {signalsDescriptor, Signal#base_signals_rec.signal}};
-				         [] -> {error, "Can't parse parametrs Signal"}
+					         {'Signal', {signalsDescriptor, Signal#base_signals_rec.signal},
+						         RecordTid#base_line_rec{signalID = Signal#base_signals_rec.signal}};
+				         [] -> {error, "Can't parse parametrs Signal", RecordTid}
 			         catch
-				         _:_ -> {error, "Don't find table of signal"}
+				         _:_ -> {error, "Don't find table of signal", RecordTid}
 			         end;
 
-				 4 when H == nil -> {no_use, nil};
+				 4 when H == nil -> {no_use, nil, RecordTid};
 		         4 ->
 			         try binary_to_atom(H, latin1) of
 				         StreamMode when (StreamMode =:= sendOnly)
@@ -195,14 +219,14 @@ parse_param4([H | T], I, Map, RecordTid) ->
 					             true ->
 					                StreamParms = maps:get('LocalControlDescriptor', Map),
 							        {'LocalControlDescriptor',
-								        StreamParms#'LocalControlDescriptor'{streamMode = StreamMode}};
+								        StreamParms#'LocalControlDescriptor'{streamMode = StreamMode}, RecordTid};
 								 false ->
 									 {'LocalControlDescriptor',
-										 #'LocalControlDescriptor'{streamMode = StreamMode}}
+										 #'LocalControlDescriptor'{streamMode = StreamMode}, RecordTid}
 					         end;
-				         _ -> {error, "Can't parse parametrs StreamMode"}
+				         _ -> {error, "Can't parse parametrs StreamMode", RecordTid}
 			         catch
-				         _:_ -> {error, "Can't parse parametrs"}
+				         _:_ -> {error, "Can't parse parametrs", RecordTid}
 			         end;
 
 		         5 when is_boolean(H) ->
@@ -210,26 +234,26 @@ parse_param4([H | T], I, Map, RecordTid) ->
 				         true ->
 					         StreamParms = maps:get('LocalControlDescriptor', Map),
 					         {'LocalControlDescriptor',
-						         StreamParms#'LocalControlDescriptor'{reserveValue = H}};
+						         StreamParms#'LocalControlDescriptor'{reserveValue = H}, RecordTid};
 				         false ->
 					         {'LocalControlDescriptor',
-						         #'LocalControlDescriptor'{reserveValue = H}}
+						         #'LocalControlDescriptor'{reserveValue = H}, RecordTid}
 			         end;
-				 5 when H == nil -> {no_use, H};
-				 5 -> {error, "Can't parse parametrs ReserveValue"};
+				 5 when H == nil -> {no_use, H, RecordTid};
+				 5 -> {error, "Can't parse parametrs ReserveValue", RecordTid};
 
 		         6 when is_boolean(H) ->
 			         case maps:is_key('LocalControlDescriptor', Map) of
 				         true ->
 					         StreamParms = maps:get('LocalControlDescriptor', Map),
 					         {'LocalControlDescriptor',
-						         StreamParms#'LocalControlDescriptor'{reserveGroup = H}};
+						         StreamParms#'LocalControlDescriptor'{reserveGroup = H}, RecordTid};
 				         false ->
 					         {'LocalControlDescriptor',
-						         #'LocalControlDescriptor'{reserveGroup = H}}
+						         #'LocalControlDescriptor'{reserveGroup = H}, RecordTid}
 			         end;
-		         6 when H == nil -> {no_use, H};
-		         6 -> {error, "Can't parse parametrs ReserveGroup"};
+		         6 when H == nil -> {no_use, H, RecordTid};
+		         6 -> {error, "Can't parse parametrs ReserveGroup", RecordTid};
 
 %%				 [#'PropertyParm']
 		         7 when is_boolean(H) ->
@@ -243,13 +267,13 @@ parse_param4([H | T], I, Map, RecordTid) ->
 					         StreamParms = maps:get('LocalControlDescriptor', Map),
 					         NewPropertyParms = StreamParms#'LocalControlDescriptor'.propertyParms ++ [PropertyParms],
 					         {'LocalControlDescriptor',
-						         StreamParms#'LocalControlDescriptor'{propertyParms = NewPropertyParms}};
+						         StreamParms#'LocalControlDescriptor'{propertyParms = NewPropertyParms}, RecordTid};
 				         false ->
 					         {'LocalControlDescriptor',
-						         #'LocalControlDescriptor'{propertyParms = [PropertyParms]}}
+						         #'LocalControlDescriptor'{propertyParms = [PropertyParms]}, RecordTid}
 			         end;
-		         7 when H == nil -> {no_use, H};
-				 7 -> {error, "Can't parse parametrs tdmc_EchoCancel"};
+		         7 when H == nil -> {no_use, H, RecordTid};
+				 7 -> {error, "Can't parse parametrs tdmc_EchoCancel", RecordTid};
 
 		         8 when is_number(H) ->
 			         PropertyParms = #'PropertyParm'{name = "tdmc/gain", value = [integer_to_list(trunc(H))]},
@@ -258,24 +282,24 @@ parse_param4([H | T], I, Map, RecordTid) ->
 					         StreamParms = maps:get('LocalControlDescriptor', Map),
 					         NewPropertyParms = StreamParms#'LocalControlDescriptor'.propertyParms ++ [PropertyParms],
 					         {'LocalControlDescriptor',
-						         StreamParms#'LocalControlDescriptor'{propertyParms = NewPropertyParms}};
+						         StreamParms#'LocalControlDescriptor'{propertyParms = NewPropertyParms}, RecordTid};
 				         false ->
 					         {'LocalControlDescriptor',
-						         #'LocalControlDescriptor'{propertyParms = [PropertyParms]}}
+						         #'LocalControlDescriptor'{propertyParms = [PropertyParms]}, RecordTid}
 			         end;
-		         8 when H == nil -> {no_use, H};
-				 8 -> {error, "Can't parse parametrs tdmc_Gain"};
+		         8 when H == nil -> {no_use, H, RecordTid};
+				 8 -> {error, "Can't parse parametrs tdmc_Gain", RecordTid};
 
-				 _ -> {error, "Can't parse parametrs"}
+				 _ -> {error, "Can't parse parametrs", RecordTid}
 	         end,
 	case K of
 		error ->
 			{K, V};
 		no_use ->
-			parse_param4(T, I + 1, Map, RecordTid);
+			parse_param4(T, I + 1, Map, N);
 		_ ->
 			NewMap = maps:put(K, V, Map),
-			parse_param4(T, I + 1, NewMap, RecordTid)
+			parse_param4(T, I + 1, NewMap, N)
 	end.
 
 

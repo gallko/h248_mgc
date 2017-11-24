@@ -38,6 +38,7 @@
 	tid     :: string(),            %% "a1"
 	regScript :: string(),
 	pid_awaiting :: pid(),
+	table :: atom(), %% '192.168.0.143:2944'
 
 	service = false     :: boolean(),   %%
 	eventID = 1         :: integer(),   %% id events -> base_mgw_events:id

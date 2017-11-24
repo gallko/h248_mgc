@@ -22,41 +22,46 @@ work_registred(Key, ConnHandle, MGW_Id) ->
 	State = luerl:init(),
 	State1 = load_func_registred(State),
 	[Record | _] = ets:lookup(MGW_Id, Key),
-	State2 = load_lua_file(Record#base_line_rec.regScript, State1),
+	InfoLua = #info_lua{conn_handle = ConnHandle, record_tid = Record},
+
+	State2 = luerl:set_table([infoLua], term_to_binary(InfoLua), State1),
+	State3 = load_lua_file(Record#base_line_rec.regScript, State2),
 	try
-		{_Res, _State3} = luerl:call_function([registration],
+		{_Res, _State4} = luerl:call_function([registration],
 			[
 				list_to_binary(Record#base_line_rec.tid),
-				Record#base_line_rec.context,
+				Record#base_line_rec.context
 %%				list_to_binary(Record#base_line_rec.signalID),
 %%				Record#base_line_rec.eventID,
-				term_to_binary(#info_lua{conn_handle = ConnHandle, record_tid = Record})
-			], State2)
+%%				term_to_binary(#info_lua{conn_handle = ConnHandle, record_tid = Record})
+			], State3)
 	catch
 		_:_ ->
 			io:format("Opps..~n")
 	end,
-	luerl:stop(State2),
+	luerl:stop(State3),
 	work_registred(ets:next(MGW_Id, Key), ConnHandle, MGW_Id).
 
 start_talk(ConnHandle, Ctx, RecTid) ->
+	InfoLua = #info_lua{conn_handle = ConnHandle, record_tid = RecTid},
 	State = luerl:init(),
 	State1 = load_func_registred(State),
-	State2 = load_lua_file(RecTid#base_line_rec.regScript, State1),
+	State2 = luerl:set_table([infoLua], term_to_binary(InfoLua), State1),
+	State3 = load_lua_file(RecTid#base_line_rec.regScript, State2),
 	try
-		{_Res, _State3} = luerl:call_function([start_talk],
+		{_Res, _State4} = luerl:call_function([start_talk],
 			[
 				list_to_binary(RecTid#base_line_rec.tid),
-				Ctx,
+				Ctx
 %%				list_to_binary(Record#base_line_rec.signalID),
 %%				Record#base_line_rec.eventID,
-				term_to_binary(#info_lua{conn_handle = ConnHandle, record_tid = RecTid})
-			], State2)
+%%				term_to_binary(InfoLua)
+			], State3)
 	catch
 		_:_ ->
 			io:format("Opps..~n")
 	end,
-	luerl:stop(State2).
+	luerl:stop(State3).
 
 %%----------------------------------------------------------------------
 %% Private function
